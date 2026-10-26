@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { useState } from "react";
-import { closeMonth, inviteMember, reopenMonth, revokeInvite, updateApproval, updateMember, updateOrganization } from "./actions";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { closeMonth, createMember, reopenMonth, revokeInvite, updateApproval, updateMember, updateOrganization } from "./actions";
 import { formatAmount } from "@/lib/money";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Field, Input, MoneyInput, Select } from "@/components/ui";
@@ -16,17 +15,36 @@ const ROLES: [string, string][] = [
   ["lideranca", "Liderança"],
 ];
 
-export function InviteForm() {
-  const [state, action] = useActionState(inviteMember, null);
+export function NewMemberForm({ siteUrl }: { siteUrl: string }) {
+  const [state, action] = useActionState(createMember, null);
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (state?.ok) ref.current?.reset();
+  }, [state]);
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
-      <Field label="E-mail" htmlFor="inv-email"><Input id="inv-email" name="email" type="email" required className="min-w-64" /></Field>
-      <Field label="Perfil" htmlFor="inv-role">
-        <Select id="inv-role" name="role" defaultValue="operador">{ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
-      </Field>
-      <SubmitButton>Convidar</SubmitButton>
-      <div className="w-full"><FormMessage state={state} /></div>
-    </form>
+    <div className="space-y-3">
+      <form ref={ref} action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto] lg:items-end">
+        <Field label="Nome" htmlFor="nm-name"><Input id="nm-name" name="name" required maxLength={120} autoComplete="off" /></Field>
+        <Field label="E-mail" htmlFor="nm-email"><Input id="nm-email" name="email" type="email" required autoComplete="off" /></Field>
+        <Field label="Perfil" htmlFor="nm-role">
+          <Select id="nm-role" name="role" defaultValue="operador">{ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
+        </Field>
+        <SubmitButton>Cadastrar</SubmitButton>
+      </form>
+      {state?.password ? (
+        <div role="status" className="rounded-xl border border-income/30 bg-income/5 p-4 text-sm">
+          <p className="font-medium text-income">Pessoa cadastrada. Passe estes dados para ela (pessoalmente ou por mensagem):</p>
+          <dl className="mt-2 grid gap-1 sm:grid-cols-[auto_1fr] sm:gap-x-3">
+            <dt className="text-muted">Endereço</dt><dd className="break-all font-medium">{siteUrl}</dd>
+            <dt className="text-muted">E-mail</dt><dd className="break-all font-medium">{state.email}</dd>
+            <dt className="text-muted">Senha provisória</dt><dd className="font-mono text-base font-semibold tracking-wide">{state.password}</dd>
+          </dl>
+          <p className="mt-2 text-xs text-muted">A senha aparece só agora. No primeiro acesso o sistema pede para ela criar a própria senha.</p>
+        </div>
+      ) : (
+        <FormMessage state={state} />
+      )}
+    </div>
   );
 }
 

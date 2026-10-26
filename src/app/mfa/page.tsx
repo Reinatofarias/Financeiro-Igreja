@@ -12,6 +12,8 @@ export default async function MfaPage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
+  // Login criado pelo administrador com senha provisória: a pessoa cria a própria senha antes de tudo.
+  if (data.claims.user_metadata?.must_change_password) redirect("/redefinir-senha");
   const ctx = await getContext();
   if (!ctx) redirect("/inicio");
   if (ctx.aal === "aal2") redirect("/");

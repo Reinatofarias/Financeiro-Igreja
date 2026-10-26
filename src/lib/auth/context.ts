@@ -104,7 +104,9 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
 
 /** Exige login e vínculo; sem vínculo, vai para a criação da igreja / aceite de convite. */
 export async function requireContext(): Promise<AppContext> {
-  if (!(await getClaims())) redirect("/login");
+  const claims = await getClaims();
+  if (!claims) redirect("/login");
+  if (claims.user_metadata?.must_change_password) redirect("/redefinir-senha");
   const ctx = await getContext();
   if (!ctx) redirect("/inicio");
   return ctx;

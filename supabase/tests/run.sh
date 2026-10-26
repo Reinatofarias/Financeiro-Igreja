@@ -11,6 +11,8 @@ for f in supabase/migrations/*.sql; do
   echo "migração: $f"
   "${PSQL[@]}" -f "$f"
 done
+# Os testes simulam várias igrejas para conferir o isolamento entre elas.
+export PGOPTIONS="-c app.multi_org=on"
 for f in supabase/tests/[0-9][0-9]_*.sql; do
   [[ "$f" == *00_supabase_stub.sql ]] && continue
   echo "teste: $f"

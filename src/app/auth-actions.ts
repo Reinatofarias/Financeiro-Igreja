@@ -48,7 +48,9 @@ export async function updatePassword(_: ActionState, form: FormData): Promise<Ac
   const parsed = passwordSchema.safeParse({ password: form.get("password"), confirm: form.get("confirm") });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  // Também apaga a marca de senha provisória e renova o token para ela sair das claims.
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password, data: { must_change_password: null } });
+  if (!error) await supabase.auth.refreshSession();
   if (error) return { ok: false, message: error.message.includes("different") ? "A nova senha precisa ser diferente da anterior." : "Não foi possível alterar a senha. Peça um novo link." };
   redirect("/mfa");
 }

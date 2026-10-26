@@ -59,6 +59,12 @@ O token dá acesso total à conta do Mercado Pago: fica só na Vercel, nunca no 
 
 No iPhone, abra o sistema no Safari, toque em **Compartilhar → Adicionar à Tela de Início**. O ícone FP aparece na tela inicial e o sistema abre em tela cheia, com a barra de telas embaixo. No Android, o Chrome oferece **Instalar app**.
 
+## Cadastrar pessoas
+
+Em **Configurações > Pessoas com acesso > Cadastrar pessoa**, o administrador informa nome, e-mail e perfil. O sistema cria o login já confirmado, com uma senha provisória que aparece uma única vez na tela, e libera o acesso na igreja. No primeiro acesso a pessoa cria a própria senha. Não é preciso criar usuários no painel do Supabase.
+
+Se a pessoa já tiver login (por exemplo, criada antes no Supabase), o cadastro só libera o acesso: ela sai e entra de novo com a senha que já usa. O sistema é de uma igreja só: quem entra sem acesso liberado vê "Acesso ainda não liberado", e não a tela de cadastrar igreja.
+
 ## Velocidade
 
 - As funções da Vercel rodam em São Paulo (`gru1`, em `vercel.json`), perto do banco. Se o projeto do Supabase estiver em outra região, troque por a mais próxima dela.
