@@ -1,13 +1,32 @@
 import type { Filters } from "@/lib/finance/filters";
 import { categoryOptions, type Lookups } from "@/lib/finance/lookups";
 import { buttonStyles, Input, Select } from "@/components/ui";
+import { Collapsible } from "@/components/collapsible";
+import { periodLabel } from "@/lib/dates";
 
 /** Filtros por período, regime, conta, fundo, ministério, projeto e categoria. Ficam na URL (podem ser salvos e compartilhados). */
 export function FilterBar({ filters, lookups, action, showCategory = true }: { filters: Filters; lookups: Lookups; action: string; showCategory?: boolean }) {
   const label = "flex flex-col gap-1 text-xs font-medium text-muted";
+  const active = [filters.account, filters.fund, filters.ministry, filters.project, filters.category].filter(Boolean).length;
   const cats = [...categoryOptions(lookups.categories, "receita", false), ...categoryOptions(lookups.categories, "despesa", false)];
   return (
-    <form method="get" action={action} className="no-print rounded-lg border border-line bg-surface p-3">
+    <Collapsible
+      className="no-print group rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(31_26_28/0.04)]"
+      summary={
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm [&::-webkit-details-marker]:hidden">
+          <span className="flex min-w-0 items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" className="h-4 w-4 shrink-0 text-brand" aria-hidden>
+              <path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" />
+            </svg>
+            <span className="font-medium">Filtros</span>
+            <span className="truncate text-muted">· {periodLabel(filters.start, filters.end)}{active > 0 ? ` · ${active} filtro${active > 1 ? "s" : ""}` : ""}</span>
+          </span>
+          <span className="text-xs text-brand group-open:hidden">Mostrar</span>
+          <span className="hidden text-xs text-brand group-open:inline">Ocultar</span>
+        </summary>
+      }
+    >
+    <form method="get" action={action} className="border-t border-line p-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         <label className={label}>
           De
@@ -80,5 +99,6 @@ export function FilterBar({ filters, lookups, action, showCategory = true }: { f
         <a className={buttonStyles.ghost} href={action}>Limpar</a>
       </div>
     </form>
+    </Collapsible>
   );
 }

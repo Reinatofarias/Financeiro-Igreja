@@ -28,6 +28,37 @@ export default async function AccountsPage() {
       {rows.length === 0 ? (
         <EmptyState title="Nenhuma conta cadastrada">Cadastre as contas Mercado Pago, Cora, PagBank e o caixa físico.</EmptyState>
       ) : (
+        <>
+        {/* Celular: cartões com o saldo à vista */}
+        <div className="space-y-2 sm:hidden">
+          <div className="rounded-xl bg-gradient-to-br from-brand to-brand-deep p-4 text-white shadow-md">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/70">Saldo consolidado</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight"><Money cents={s?.total_cents ?? 0} /></p>
+            {s && s.in_transit_cents !== 0 && <p className="mt-1 text-xs text-white/70">Inclui <Money cents={s.in_transit_cents} /> em trânsito</p>}
+          </div>
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+            {rows.map((r) => (
+              <li key={r.account_id}>
+                <Link href={`/contas/${r.account_id}`} className={`flex items-center justify-between gap-3 px-4 py-3 active:bg-bg ${r.is_active ? "" : "text-muted"}`}>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{r.name}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {ACCOUNT_KIND_LABEL[r.kind as keyof typeof ACCOUNT_KIND_LABEL]} · último movimento {formatDateBR(r.last_movement)}
+                    </p>
+                    {(r.provider !== "manual" || !r.is_active) && (
+                      <div className="mt-1.5 flex gap-1">
+                        {r.provider !== "manual" && <IntegrationBadge provider={r.provider} integ={integ.get(r.account_id)} />}
+                        {!r.is_active && <Badge>Desativada</Badge>}
+                      </div>
+                    )}
+                  </div>
+                  <Money className="shrink-0 font-semibold" cents={r.balance_cents} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hidden sm:block">
         <Table>
           <thead>
             <tr><th>Conta</th><th>Tipo</th><th>Integração</th><th>Último movimento</th><th>Origem do saldo</th><th className="text-right">Saldo atual</th></tr>
@@ -51,6 +82,8 @@ export default async function AccountsPage() {
             <tr className="font-semibold"><td colSpan={5}>Saldo consolidado</td><td className="text-right"><Money cents={s?.total_cents ?? 0} /></td></tr>
           </tfoot>
         </Table>
+        </div>
+        </>
       )}
       {ctx.can.manage && (
         <Card title="Cadastrar conta">

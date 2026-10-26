@@ -45,7 +45,7 @@ export default async function ReportsPage() {
             <li><a className="text-brand underline" href={`/api/exportar/lancamentos?inicio=${prev}&fim=${monthEnd(prev)}`}>Lançamentos do mês anterior (CSV)</a></li>
             <li><a className="text-brand underline" href={`/api/exportar/resumo?inicio=${addMonths(cur, -11)}&fim=${monthEnd(cur)}`}>Resumo mensal dos últimos 12 meses (CSV)</a></li>
           </ul>
-          <p className="mt-2 text-xs text-muted">CSV com ponto e vírgula, abre direto no Excel e no Google Planilhas. XLSX e pacote para o contador entram na Fase 4.</p>
+          <p className="mt-2 text-xs text-muted">CSV com ponto e vírgula, abre direto no Excel e no Google Planilhas. XLSX e pacote para o contador ficam para uma próxima etapa.</p>
         </Card>
       </div>
       <Card title="Como cada indicador é calculado">

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { friendlyError, type ActionState } from "@/lib/errors";
+import { parseBRLToCents } from "@/lib/money";
 
 const roles = ["admin", "tesoureiro", "operador", "aprovador", "auditor", "lideranca"] as const;
 
@@ -95,6 +96,7 @@ export async function closeMonth(_: ActionState, form: FormData): Promise<Action
   const { error } = await supabase.rpc("close_period", { p_org: ctx.org.id, p_month: `${month}-01` });
   if (error) return { ok: false, message: friendlyError(error) };
   revalidatePath("/configuracoes");
+  revalidatePath("/fechamento");
   return { ok: true, message: "Mês fechado. Lançamentos nesse mês ficam bloqueados." };
 }
 
@@ -106,5 +108,23 @@ export async function reopenMonth(_: ActionState, form: FormData): Promise<Actio
   const { error } = await supabase.rpc("reopen_period", { p_org: ctx.org.id, p_month: month, p_reason: reason });
   if (error) return { ok: false, message: friendlyError(error) };
   revalidatePath("/configuracoes");
+  revalidatePath("/fechamento");
   return { ok: true, message: "Mês reaberto. A justificativa ficou registrada na auditoria." };
+}
+
+export async function updateApproval(_: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await requireContext();
+  const mode = String(form.get("mode") ?? "");
+  let threshold: number | null = null;
+  if (mode === "todas") threshold = 0;
+  else if (mode === "valor") {
+    const cents = parseBRLToCents(String(form.get("amount") ?? ""));
+    if (cents === null || cents <= 0) return { ok: false, message: "Informe o valor a partir do qual a despesa precisa de aprovação." };
+    threshold = cents;
+  } else if (mode !== "nenhuma") return { ok: false, message: "Escolha uma opção." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("organizations").update({ approval_threshold_cents: threshold }).eq("id", ctx.org.id).select("id").single();
+  if (error) return { ok: false, message: friendlyError(error) };
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Regra de aprovação salva. Vale para as contas cadastradas daqui em diante." };
 }

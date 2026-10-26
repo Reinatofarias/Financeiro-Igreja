@@ -84,7 +84,7 @@ export function PendingWorkbench({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full text-sm [&_td]:border-t [&_td]:border-line [&_td]:px-3 [&_td]:py-2 [&_th]:bg-bg [&_th]:px-3 [&_th]:py-2 [&_th:not(.text-right)]:text-left [&_th]:font-medium [&_th]:text-muted">
           <thead>
             <tr>
@@ -126,7 +126,7 @@ export function PendingWorkbench({
 
       {canOperate && (
         <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <form action={postAction} className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <form action={postAction} className="space-y-3 rounded-xl border border-line bg-surface p-4">
             {hidden}
             <p className="text-sm font-semibold">Lançar os selecionados</p>
             <p className="text-sm text-muted">
@@ -166,7 +166,7 @@ export function PendingWorkbench({
             )}
           </form>
 
-          <form action={ignoreAction} className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <form action={ignoreAction} className="space-y-3 rounded-xl border border-line bg-surface p-4">
             {hidden}
             <p className="text-sm font-semibold">Ignorar os selecionados</p>
             <p className="text-sm text-muted">Para movimentos que já estão no saldo inicial ou que não são da igreja. Fica registrado quem ignorou e por quê.</p>

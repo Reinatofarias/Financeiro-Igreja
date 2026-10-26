@@ -23,6 +23,7 @@ export type Organization = {
   logo_path: string | null;
   require_mfa: boolean;
   is_demo: boolean;
+  approval_threshold_cents: number | null;
 };
 
 export type AppContext = {
@@ -32,12 +33,12 @@ export type AppContext = {
   role: Role;
   org: Organization;
   aal: "aal1" | "aal2";
-  hasMfaFactor: boolean;
   can: {
     operate: boolean; // lançar receitas, despesas, transferências, caixa
     manage: boolean; // cadastros, estornos, períodos
     admin: boolean; // membros e configurações
     verifyCash: boolean;
+    approve: boolean; // aprovar ou recusar despesas
     seeDonors: boolean;
     seeAudit: boolean;
     seeStatements: boolean; // linhas do extrato trazem o nome de quem fez o Pix
@@ -46,28 +47,34 @@ export type AppContext = {
   needsMfa: boolean;
 };
 
+/** Claims do JWT, conferidas uma vez por requisição (layout, página e ações reaproveitam). */
+export const getClaims = cache(async () => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  return data?.claims ?? null;
+});
+
 /** Sessão + vínculo de quem está usando. Lê o JWT e o banco a cada requisição (sem cache entre requisições). */
 export const getContext = cache(async (): Promise<AppContext | null> => {
-  const supabase = await createClient();
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const claims = claimsData?.claims;
+  const claims = await getClaims();
   if (!claims?.sub) return null;
 
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role, organization:organizations(id, name, legal_name, document, timezone, logo_path, require_mfa, is_demo)")
-    .eq("user_id", claims.sub)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
+  // Vínculo e perfil em paralelo: uma ida ao banco em vez de duas em sequência.
+  const supabase = await createClient();
+  const [{ data: membership }, { data: profile }] = await Promise.all([
+    supabase
+      .from("memberships")
+      .select("role, organization:organizations(id, name, legal_name, document, timezone, logo_path, require_mfa, is_demo, approval_threshold_cents)")
+      .eq("user_id", claims.sub)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("profiles").select("full_name").eq("id", claims.sub).maybeSingle(),
+  ]);
 
   if (!membership?.organization) return null;
   const org = membership.organization as unknown as Organization;
   const role = membership.role as Role;
-
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  const hasMfaFactor = (factors?.totp ?? []).some((f) => f.status === "verified");
-  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", claims.sub).maybeSingle();
 
   const aal = (claims.aal === "aal2" ? "aal2" : "aal1") as "aal1" | "aal2";
   const privileged = role === "admin" || role === "tesoureiro";
@@ -81,13 +88,13 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     role,
     org,
     aal,
-    hasMfaFactor,
     needsMfa,
     can: {
       operate: is("admin", "tesoureiro", "operador") && !needsMfa,
       manage: is("admin", "tesoureiro") && !needsMfa,
       admin: is("admin") && !needsMfa,
       verifyCash: is("admin", "tesoureiro", "aprovador") && !needsMfa,
+      approve: is("admin", "tesoureiro", "aprovador") && !needsMfa,
       seeDonors: is("admin", "tesoureiro", "auditor") && !needsMfa,
       seeAudit: is("admin", "tesoureiro", "auditor") && !needsMfa,
       seeStatements: is("admin", "tesoureiro", "operador", "auditor") && !needsMfa,
@@ -97,9 +104,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
 
 /** Exige login e vínculo; sem vínculo, vai para a criação da igreja / aceite de convite. */
 export async function requireContext(): Promise<AppContext> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) redirect("/login");
+  if (!(await getClaims())) redirect("/login");
   const ctx = await getContext();
   if (!ctx) redirect("/inicio");
   return ctx;

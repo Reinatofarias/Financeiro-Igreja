@@ -16,7 +16,14 @@ export function SubmitButton({ children, variant = "primary", confirm }: { child
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
     >
-      {pending ? "Salvando…" : children}
+      {pending ? (
+        <>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden />
+          Salvando…
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

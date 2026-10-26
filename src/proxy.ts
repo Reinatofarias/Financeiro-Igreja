@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // /api/cron confere o CRON_SECRET na própria rota.
-const PUBLIC_PATHS = ["/login", "/auth", "/esqueci-senha", "/api/cron/"];
+// O manifesto precisa abrir sem login para o iPhone/Android instalar o app com o ícone.
+const PUBLIC_PATHS = ["/login", "/auth", "/esqueci-senha", "/api/cron/", "/manifest.webmanifest"];
 
 // Renova a sessão do Supabase a cada requisição e manda para o login quem não está autenticado.
 // A autorização de verdade acontece no banco (RLS) e nas páginas; isto é só a porta de entrada.

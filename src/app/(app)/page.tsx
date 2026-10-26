@@ -1,38 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireContext } from "@/lib/auth/context";
+import { createClient } from "@/lib/supabase/server";
 import { parseFilters, filtersToQuery } from "@/lib/finance/filters";
 import { loadLookups, ACCOUNT_KIND_LABEL, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { loadFinancialReport } from "@/lib/finance/reports";
 import { todayIn, formatDateBR, periodLabel } from "@/lib/dates";
-import { ButtonLink, Card, EmptyState, Money, PageHeader, Table } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, Money, PageHeader, Stat, Table } from "@/components/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { CategoryBars, MonthlyChart, MonthlyTable } from "@/components/charts";
 
 export const metadata: Metadata = { title: "Visão geral" };
 
-function Kpi({ label, cents, help, tone, href }: { label: string; cents: number; help: string; tone?: "income" | "expense" | "signed"; href?: string }) {
-  const color = tone === "income" ? "text-income" : tone === "expense" ? "text-expense" : tone === "signed" ? (cents >= 0 ? "text-income" : "text-expense") : "";
-  const body = (
-    <>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className={`mt-1 text-xl font-semibold ${color}`}>
-        <Money cents={cents} />
-      </p>
-      <p className="mt-1 text-xs text-muted">{help}</p>
-    </>
-  );
-  return href ? (
-    <Link href={href} className="block rounded-lg border border-line bg-surface p-4 hover:border-brand">{body}</Link>
-  ) : (
-    <div className="rounded-lg border border-line bg-surface p-4">{body}</div>
-  );
-}
-
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requireContext();
   const filters = parseFilters(await searchParams, ctx.org.timezone);
-  const [lookups, report] = await Promise.all([loadLookups(ctx.org.id), loadFinancialReport(ctx.org.id, filters, todayIn(ctx.org.timezone))]);
+  const supabase = await createClient();
+  const [lookups, report, { data: billsSummary }] = await Promise.all([
+    loadLookups(ctx.org.id),
+    loadFinancialReport(ctx.org.id, filters, todayIn(ctx.org.timezone)),
+    supabase.rpc("bills_summary", { p_org: ctx.org.id }).single(),
+  ]);
+  const bills = billsSummary as {
+    overdue_pay_cents: number; overdue_pay_count: number; week_pay_cents: number; week_pay_count: number;
+    overdue_receive_cents: number; week_receive_cents: number; pending_approval_count: number;
+  } | null;
   const q = filtersToQuery(filters);
   const hasAccounts = lookups.accounts.length > 0;
 
@@ -61,19 +53,44 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <FilterBar filters={filters} lookups={lookups} action="/" />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Saldo consolidado" cents={report.summary.total_cents} help="Soma dos saldos calculados de todas as contas, incluindo valores em trânsito." href="/contas" />
-            <Kpi label="Recursos livres" cents={report.summary.free_cents} help="Saldo consolidado menos os fundos vinculados." />
-            <Kpi label="Recursos vinculados" cents={report.summary.restricted_cents} help="Soma dos saldos positivos dos fundos com destino definido." />
-            <Kpi label="Em trânsito" cents={report.summary.in_transit_cents} help="Transferências enviadas e ainda não confirmadas na conta de destino." />
-            <Kpi label="Receitas do período" cents={report.totals.income_cents} tone="income" help="Receitas pelo valor bruto, líquidas de estornos. Não inclui transferências nem saldo inicial." href={`/lancamentos?${q}&tipo=receita`} />
-            <Kpi label="Despesas do período" cents={report.totals.expense_cents} tone="expense" help="Despesas e tarifas, líquidas de estornos. Não inclui transferências." href={`/lancamentos?${q}&tipo=despesa`} />
-            <Kpi label="Resultado do período" cents={report.totals.result_cents} tone="signed" help="Receitas menos despesas do período." href={`/lancamentos?${q}`} />
-            <div className="rounded-lg border border-line bg-surface p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">Lançamentos no período</p>
-              <p className="mt-1 text-xl font-semibold num">{report.totals.entries_count}</p>
-              <p className="mt-1 text-xs text-muted">Com receita ou despesa, incluindo estornos.</p>
-            </div>
+            <Stat featured label="Saldo consolidado" value={<Money cents={report.summary.total_cents} />} help="Soma dos saldos de todas as contas, incluindo valores em trânsito." href="/contas" />
+            <Stat label="Recursos livres" value={<Money cents={report.summary.free_cents} />} help="Saldo consolidado menos os fundos vinculados." />
+            <Stat label="Recursos vinculados" value={<Money cents={report.summary.restricted_cents} />} help="Saldos positivos dos fundos com destino definido." />
+            <Stat label="Em trânsito" value={<Money cents={report.summary.in_transit_cents} />} help="Transferências enviadas e ainda não confirmadas no destino." />
           </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat label="Receitas do período" tone="income" value={<Money cents={report.totals.income_cents} />} help="Valor bruto, líquido de estornos. Sem transferências nem saldo inicial." href={`/lancamentos?${q}&tipo=receita`} />
+            <Stat label="Despesas do período" tone="expense" value={<Money cents={report.totals.expense_cents} />} help="Despesas e tarifas, líquidas de estornos. Sem transferências." href={`/lancamentos?${q}&tipo=despesa`} />
+            <Stat
+              label="Resultado do período"
+              tone={report.totals.result_cents >= 0 ? "income" : "expense"}
+              value={<Money cents={report.totals.result_cents} />}
+              help="Receitas menos despesas do período."
+              href={`/lancamentos?${q}`}
+            />
+            <Stat label="Lançamentos no período" value={<span className="num">{report.totals.entries_count}</span>} help="Com receita ou despesa, incluindo estornos." />
+          </div>
+
+          {bills && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Stat
+                label="Contas vencidas"
+                tone={bills.overdue_pay_count > 0 ? "expense" : undefined}
+                value={<Money cents={bills.overdue_pay_cents} />}
+                help={bills.overdue_pay_count > 0 ? `${bills.overdue_pay_count} conta(s) a pagar já venceram.` : "Nenhuma conta a pagar vencida."}
+                href="/contas-a-pagar"
+              />
+              <Stat label="A pagar em 7 dias" value={<Money cents={bills.week_pay_cents} />} help={`${bills.week_pay_count} conta(s) vencendo nesta semana.`} href="/contas-a-pagar" />
+              <Stat label="A receber em 7 dias" tone="income" value={<Money cents={bills.week_receive_cents} />} help="Contas a receber com vencimento nesta semana." href="/contas-a-pagar?tipo=receber" />
+              <Stat
+                label="Aguardando aprovação"
+                value={<span className="num">{bills.pending_approval_count}</span>}
+                help={ctx.can.approve && bills.pending_approval_count > 0 ? "Toque para aprovar ou recusar." : "Despesas que precisam do ok antes de pagar."}
+                href="/contas-a-pagar"
+              />
+            </div>
+          )}
 
           <Card title="Evolução mensal" actions={<span className="text-xs text-muted">Valores realizados</span>}>
             <MonthlyChart rows={report.monthly} />
@@ -102,7 +119,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   ))}
                 </tbody>
               </Table>
-              <p className="mt-2 text-xs text-muted">Saldos calculados pelo sistema (saldo inicial + lançamentos). Ainda não há saldo informado pelo banco: as integrações chegam na Fase 3.</p>
+              <p className="mt-2 text-xs text-muted">Saldos calculados pelo sistema (saldo inicial + lançamentos conciliados).</p>
             </Card>
             <Card title="Fundos">
               <Table>
@@ -120,12 +137,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </Card>
           </div>
 
-          <Card title="Indicadores das próximas fases">
-            <p className="text-sm text-muted">
-              Contas vencidas e a vencer, projeção de caixa e orçado x realizado entram na Fase 4. Situação da conciliação na Fase 2 e saúde das integrações na Fase 3.
-              Não mostramos esses números antes de existirem dados reais para eles. <Link className="text-brand underline" href="/relatorios">Definição de cada indicador</Link>.
-            </p>
-          </Card>
         </>
       )}
     </>

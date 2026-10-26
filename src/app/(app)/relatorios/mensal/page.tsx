@@ -55,7 +55,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
         <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
           <div className="flex items-center gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {logoUrl && <img src={logoUrl} alt="" className="h-16 w-16 object-contain" />}
+            <img src={logoUrl || "/brand/simbolo.png"} alt="" className="h-16 w-16 object-contain" />
             <div>
               <p className="text-xl font-bold">{ctx.org.legal_name || ctx.org.name}</p>
               {ctx.org.document && <p className="text-sm">CNPJ {ctx.org.document.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}</p>}
