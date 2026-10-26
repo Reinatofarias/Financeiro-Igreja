@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { parseFilters } from "@/lib/finance/filters";
 import { ACCOUNT_KIND_LABEL, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { ENTRY_KIND_LABEL } from "@/lib/finance/labels";
-import { formatDateBR, periodLabel } from "@/lib/dates";
-import { Card, EmptyState, Input, Money, PageHeader, Table, buttonStyles } from "@/components/ui";
-import { OpeningBalanceForm, ToggleAccountForm } from "../account-forms";
+import { formatDateBR, formatDateTimeBR, periodLabel } from "@/lib/dates";
+import { Badge, Card, EmptyState, Input, Money, PageHeader, Table, buttonStyles } from "@/components/ui";
+import { IntegrationForm, OpeningBalanceForm, ToggleAccountForm } from "../account-forms";
+import { hasToken } from "@/lib/integrations/sync";
 
 export const metadata: Metadata = { title: "Extrato da conta" };
 
@@ -28,6 +29,13 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
   const opening = ((before ?? []) as { account_id: string; balance_cents: number }[]).find((b) => b.account_id === id)?.balance_cents ?? 0;
   const inflow = rows.filter((r) => r.amount_cents > 0).reduce((s, r) => s + r.amount_cents, 0);
   const outflow = rows.filter((r) => r.amount_cents < 0).reduce((s, r) => s - r.amount_cents, 0);
+  const isMp = acc.provider === "mercado_pago";
+  const { data: integ } = isMp
+    ? await supabase.from("integrations").select("id, credential_slot, enabled, last_run_at, last_status, last_message").eq("financial_account_id", id).maybeSingle()
+    : { data: null };
+  const { data: runs } = integ
+    ? await supabase.from("integration_runs").select("id, started_at, trigger, status, message").eq("integration_id", integ.id).order("started_at", { ascending: false }).limit(5)
+    : { data: [] };
 
   return (
     <>
@@ -72,6 +80,36 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           <Card title="Saldo inicial"><OpeningBalanceForm accountId={acc.id} openingDate={acc.opening_date} /></Card>
           <Card title="Situação"><ToggleAccountForm accountId={acc.id} active={acc.is_active} /></Card>
         </div>
+      )}
+      {isMp && (ctx.can.manage || integ) && (
+        <Card title="Integração com o Mercado Pago">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-2 text-sm">
+              <p className="text-muted">
+                Uma vez por dia o sistema pede ao Mercado Pago o relatório desta conta e coloca os movimentos novos em
+                {" "}<Link className="text-brand underline" href={`/conciliacao?conta=${acc.id}`}>Conciliação</Link>, como pendentes.
+                Nada é lançado sem alguém do financeiro conferir. O token fica só na Vercel.
+              </p>
+              {integ?.last_run_at && (
+                <p>
+                  Última sincronização: {formatDateTimeBR(integ.last_run_at, ctx.org.timezone)}{" "}
+                  <Badge tone={integ.last_status === "ok" ? "good" : integ.last_status === "erro" ? "bad" : "warn"}>{integ.last_status}</Badge>
+                  <span className="block text-muted">{integ.last_message}</span>
+                </p>
+              )}
+              {(runs ?? []).length > 0 && (
+                <ul className="space-y-1 border-t border-line pt-2 text-xs text-muted">
+                  {(runs ?? []).map((r) => (
+                    <li key={r.id}>{formatDateTimeBR(r.started_at, ctx.org.timezone)} · {r.trigger} · {r.status} · {r.message}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {ctx.can.manage && (
+              <IntegrationForm accountId={acc.id} slot={integ?.credential_slot ?? null} enabled={integ?.enabled ?? true} tokens={[1, 2, 3, 4].map(hasToken)} />
+            )}
+          </div>
+        </Card>
       )}
     </>
   );

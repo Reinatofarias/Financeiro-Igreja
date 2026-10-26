@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { createAccount, setOpeningBalance, toggleAccount } from "./actions";
+import { createAccount, saveIntegration, setOpeningBalance, toggleAccount } from "./actions";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Field, Input, MoneyInput, Select } from "@/components/ui";
 
@@ -70,6 +70,28 @@ export function ToggleAccountForm({ accountId, active }: { accountId: string; ac
         {active ? "Desativar conta" : "Reativar conta"}
       </SubmitButton>
       <FormMessage state={state} />
+    </form>
+  );
+}
+
+export function IntegrationForm({ accountId, slot, enabled, tokens }: { accountId: string; slot: number | null; enabled: boolean; tokens: boolean[] }) {
+  const [state, action] = useActionState(saveIntegration, null);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="account_id" value={accountId} />
+      <Field label="Token na Vercel" htmlFor="int-slot" hint="Número da variável MERCADOPAGO_ACCESS_TOKEN_N que tem o Access Token desta conta.">
+        <Select id="int-slot" name="slot" required defaultValue={slot ? String(slot) : ""}>
+          <option value="">Escolha</option>
+          {tokens.map((ok, i) => (
+            <option key={i} value={i + 1}>MERCADOPAGO_ACCESS_TOKEN_{i + 1}{ok ? " (encontrado)" : " (não encontrado)"}</option>
+          ))}
+        </Select>
+      </Field>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="enabled" defaultChecked={slot === null ? true : enabled} /> Sincronizar todo dia
+      </label>
+      <FormMessage state={state} />
+      <SubmitButton>Salvar integração</SubmitButton>
     </form>
   );
 }

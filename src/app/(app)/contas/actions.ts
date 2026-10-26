@@ -65,3 +65,19 @@ export async function toggleAccount(_: ActionState, form: FormData): Promise<Act
   revalidatePath("/", "layout");
   return { ok: true, message: active ? "Conta reativada." : "Conta desativada. O histórico continua disponível." };
 }
+
+export async function saveIntegration(_: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await requireContext();
+  const account = z.string().uuid().safeParse(form.get("account_id"));
+  const slot = z.coerce.number().int().min(1).max(4).safeParse(form.get("slot"));
+  if (!account.success) return { ok: false, message: "Conta inválida." };
+  if (!slot.success) return { ok: false, message: "Escolha o número do token." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_integration", {
+    p_org: ctx.org.id, p_account: account.data, p_slot: slot.data, p_enabled: form.get("enabled") === "on",
+  });
+  if (error) return { ok: false, message: friendlyError(error) };
+  revalidatePath(`/contas/${account.data}`);
+  revalidatePath("/conciliacao");
+  return { ok: true, message: "Integração salva." };
+}

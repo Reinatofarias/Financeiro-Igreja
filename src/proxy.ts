@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/esqueci-senha"];
+// /api/cron confere o CRON_SECRET na própria rota.
+const PUBLIC_PATHS = ["/login", "/auth", "/esqueci-senha", "/api/cron/"];
 
 // Renova a sessão do Supabase a cada requisição e manda para o login quem não está autenticado.
 // A autorização de verdade acontece no banco (RLS) e nas páginas; isto é só a porta de entrada.
