@@ -16,7 +16,12 @@ export async function signIn(_: ActionState, form: FormData): Promise<ActionStat
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { ok: false, message: "E-mail ou senha incorretos." };
+  if (error) {
+    if (error.code === "email_not_confirmed") return { ok: false, message: "Este e-mail ainda não foi confirmado. No Supabase, confirme o usuário em Authentication > Users." };
+    if (error.code === "invalid_credentials") return { ok: false, message: "E-mail ou senha incorretos." };
+    console.error("login falhou", error.status, error.code, error.message);
+    return { ok: false, message: `Não foi possível entrar agora (${error.code ?? error.status ?? "erro desconhecido"}). Tente de novo em instantes.` };
+  }
   redirect("/mfa");
 }
 
