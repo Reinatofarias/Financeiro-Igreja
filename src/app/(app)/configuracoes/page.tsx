@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTimeBR } from "@/lib/dates";
 import { Badge, Card, EmptyState, PageHeader, Table } from "@/components/ui";
 import Link from "next/link";
-import { ApprovalForm, InviteForm, MemberForm, OrgForm, RevokeInviteForm } from "./forms";
+import { env } from "@/lib/env";
+import { ApprovalForm, NewMemberForm, MemberForm, OrgForm, RevokeInviteForm } from "./forms";
 
 export const metadata: Metadata = { title: "Configurações" };
 
@@ -43,11 +44,12 @@ export default async function SettingsPage() {
         </Table>
         {ctx.can.admin && (
           <div className="mt-4 space-y-3">
-            <h3 className="text-sm font-semibold">Convidar pessoa</h3>
-            <InviteForm />
+            <h3 className="text-sm font-semibold">Cadastrar pessoa</h3>
+            <p className="text-sm text-muted">O sistema cria o login com uma senha provisória e libera o acesso no perfil escolhido. Não precisa mexer no Supabase.</p>
+            <NewMemberForm siteUrl={env.siteUrl()} />
             {(invites ?? []).length > 0 && (
               <Table>
-                <thead><tr><th>Convite</th><th>Perfil</th><th>Expira</th><th /></tr></thead>
+                <thead><tr><th>Aguardando 1º acesso</th><th>Perfil</th><th>Expira</th><th /></tr></thead>
                 <tbody>
                   {(invites ?? []).map((i) => (
                     <tr key={i.id}><td>{i.email}</td><td>{ROLE_LABEL[i.role as Role]}</td><td>{formatDateTimeBR(i.expires_at, ctx.org.timezone)}</td><td><RevokeInviteForm id={i.id} /></td></tr>

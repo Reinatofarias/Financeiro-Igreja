@@ -5,36 +5,61 @@ import { z } from "zod";
 import { requireContext } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { env } from "@/lib/env";
 import { friendlyError, type ActionState } from "@/lib/errors";
 import { parseBRLToCents } from "@/lib/money";
 
 const roles = ["admin", "tesoureiro", "operador", "aprovador", "auditor", "lideranca"] as const;
 
-export async function inviteMember(_: ActionState, form: FormData): Promise<ActionState> {
+export type NewMemberState = (NonNullable<ActionState> & { email?: string; password?: string }) | null;
+
+/** Senha provisória legível (sem 0/O, 1/l), mostrada uma única vez para o administrador repassar. */
+function temporaryPassword() {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const chars = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+  return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8)}`;
+}
+
+export async function createMember(_: NewMemberState, form: FormData): Promise<NewMemberState> {
   const ctx = await requireContext();
-  const parsed = z.object({ email: z.string().trim().toLowerCase().email("E-mail inválido."), role: z.enum(roles) }).safeParse(Object.fromEntries(form));
+  const parsed = z
+    .object({
+      name: z.string().trim().min(2, "Informe o nome.").max(120),
+      email: z.string().trim().toLowerCase().email("E-mail inválido."),
+      role: z.enum(roles),
+    })
+    .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { name, email, role } = parsed.data;
 
-  // 1) O convite é registrado com a sessão da pessoa: o banco confere se ela é admin (com MFA).
+  // 1) O acesso é registrado com a sessão da pessoa: o banco confere se ela é admin (com MFA).
   const supabase = await createClient();
-  const { error } = await supabase.rpc("invite_member", { p_org: ctx.org.id, p_email: parsed.data.email, p_role: parsed.data.role });
+  const { error } = await supabase.rpc("invite_member", { p_org: ctx.org.id, p_email: email, p_role: role });
   if (error) return { ok: false, message: friendlyError(error) };
-
-  // 2) Só depois da autorização confirmada, o e-mail é enviado com a chave de serviço (servidor).
   revalidatePath("/configuracoes");
-  let sent: { error: unknown };
+
+  // 2) Só depois da autorização confirmada, o login é criado com a chave de serviço (servidor), já confirmado.
+  let admin;
   try {
-    const admin = createAdminClient();
-    sent = await admin.auth.admin.inviteUserByEmail(parsed.data.email, { redirectTo: `${env.siteUrl()}/auth/confirm?next=/redefinir-senha` });
+    admin = createAdminClient();
   } catch {
-    return { ok: true, message: "Convite registrado, mas o envio de e-mail não está configurado no servidor. Peça para a pessoa criar o acesso pela tela de login." };
+    return { ok: false, message: "Acesso registrado, mas falta a chave de serviço do Supabase na Vercel para criar o login." };
   }
-  if (sent.error) {
-    // Conta já existente: basta a pessoa entrar com o mesmo e-mail que o convite é aceito.
-    return { ok: true, message: "Convite registrado. Esta pessoa já tem login: peça para entrar com o mesmo e-mail." };
+  const password = temporaryPassword();
+  const { error: createError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name, must_change_password: true },
+  });
+  if (createError) {
+    if (createError.code === "email_exists" || /already/i.test(createError.message)) {
+      return { ok: true, message: "Esta pessoa já tem login. O acesso foi liberado: peça para ela entrar com o mesmo e-mail e a senha que já usa." };
+    }
+    console.error("criar login falhou", createError.status, createError.code);
+    return { ok: false, message: "O acesso foi registrado, mas não foi possível criar o login agora. Tente de novo em instantes." };
   }
-  return { ok: true, message: "Convite enviado por e-mail. Ele vale por 7 dias." };
+  return { ok: true, message: "Pessoa cadastrada.", email, password };
 }
 
 export async function revokeInvite(_: ActionState, form: FormData): Promise<ActionState> {
