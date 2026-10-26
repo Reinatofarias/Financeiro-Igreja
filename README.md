@@ -6,7 +6,7 @@ Stack: Next.js 16 (App Router) + TypeScript, Supabase (Postgres, Auth, Storage) 
 
 O desenho completo (arquitetura, matriz de integrações, modelo de dados e fases) está em [docs/ARQUITETURA.md](docs/ARQUITETURA.md). A definição de cada número do painel está em [docs/INDICADORES.md](docs/INDICADORES.md).
 
-## O que já funciona (Fase 1)
+## O que já funciona (Fases 1 e 2)
 
 - Login com e-mail e senha, recuperação de senha, verificação em duas etapas (TOTP, obrigatória para administrador e tesoureiro).
 - Perfis: administrador, tesoureiro, operador financeiro, aprovador, conselho fiscal/auditor e liderança. Convites por e-mail.
@@ -17,10 +17,26 @@ O desenho completo (arquitetura, matriz de integrações, modelo de dados e fase
 - Painel com filtros, relatório mensal para impressão (A4 retrato, A4 paisagem, A3 e tela) e exportação CSV.
 - Auditoria de todas as alterações (sem CPF, Pix ou telefone de doadores no histórico).
 
+## Conciliação (Fase 2)
+
+Em **Conciliação**, importe o extrato e resolva cada movimento:
+
+- **Mercado Pago**: Seu negócio › Relatórios › **Extrato da conta** (CSV). Este é o recomendado, porque traz saldo inicial e final do período e mostra se o saldo do sistema bate com o do banco. O relatório de **liberações** também é aceito.
+- **Cora e PagBank**: extrato em **OFX**.
+- Importar o mesmo período de novo não duplica nada: o extrato e o relatório de liberações usam a mesma identificação do pagamento.
+
+Cada movimento pendente pode ser:
+
+- **Lançado**: marque vários (ex.: todos os Pix recebidos de domingo) e lance com uma categoria. Entradas com tarifa entram pelo valor bruto, com a tarifa separada.
+- **Casado** com um lançamento que já existe (o sistema sugere os de mesmo valor, até 5 dias de diferença).
+- **Ignorado** com motivo, para movimentos anteriores ao saldo inicial da conta ou que não são da igreja.
+
+O extrato traz o nome de quem fez o Pix, então só administrador, tesoureiro, operador e auditor (com verificação em duas etapas) veem esta tela. O valor importado não pode ser alterado depois; para desfazer um lançamento criado do extrato, estorne o lançamento e o movimento volta a ficar pendente.
+
 ## O que ainda NÃO existe
 
-- Nenhuma integração bancária: os saldos são **calculados pelo sistema**, não lidos dos bancos. Importação de extrato do Mercado Pago é a prioridade da Fase 2; APIs da Cora, Mercado Pago e PagBank ficam para a Fase 3.
-- Conciliação, contas a pagar/receber, orçamento e aprovações (Fases 2 a 4).
+- Nenhuma integração bancária automática: o extrato é importado por arquivo. APIs da Cora, Mercado Pago e PagBank ficam para a Fase 3.
+- Contas a pagar/receber, orçamento e aprovações (Fase 4).
 - Prestação de contas pública (Fase 5).
 
 ## Instalação (Supabase + Vercel, plano gratuito)
@@ -46,6 +62,10 @@ O desenho completo (arquitetura, matriz de integrações, modelo de dados e fase
 2. Em **Settings > Environment Variables**, crie as variáveis de [`.env.example`](.env.example). Os valores ficam em **Supabase > Project Settings > API**.
    - `SUPABASE_SERVICE_ROLE_KEY` é secreta: nunca com prefixo `NEXT_PUBLIC_`, nunca em chat, print ou planilha.
 3. Faça o deploy.
+
+### Atualizar um banco já instalado
+
+Cada fase nova traz um arquivo em `supabase/migrations/`. Rode no **SQL Editor** só os arquivos novos, na ordem (a Fase 2 é `20261026000700_conciliacao.sql`). Para instalar do zero, `supabase/instalar.sql` já tem tudo.
 
 ### 3. Primeiro acesso
 

@@ -11,13 +11,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/contas", label: "Contas e saldos" },
     { href: "/lancamentos", label: "Lançamentos" },
     { href: "/caixa", label: "Caixa físico" },
+    ...(ctx.can.seeStatements ? [{ href: "/conciliacao", label: "Conciliação" }] : []),
     { href: "/relatorios", label: "Relatórios" },
     { href: "/cadastros", label: "Cadastros" },
     ...(ctx.can.seeDonors ? [{ href: "/doadores", label: "Doadores" }] : []),
     ...(ctx.role === "admin" || ctx.role === "tesoureiro" ? [{ href: "/configuracoes", label: "Configurações" }] : []),
     ...(ctx.can.seeAudit ? [{ href: "/auditoria", label: "Auditoria" }] : []),
   ];
-  const upcoming = ["Conciliação (Fase 2)", "Integrações bancárias (Fase 3)", "Orçamento e aprovações (Fase 4)", "Prestação de contas pública (Fase 5)"];
+  const upcoming = ["Integrações bancárias (Fase 3)", "Orçamento e aprovações (Fase 4)", "Prestação de contas pública (Fase 5)"];
 
   return (
     <div className="min-h-screen lg:flex">
