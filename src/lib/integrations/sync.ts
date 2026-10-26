@@ -48,6 +48,8 @@ export async function syncIntegration(integrationId: string, trigger: "agendado"
   }
   const mp = createMercadoPagoClient(token);
   let linesNew = 0;
+  let reportsDone = 0;
+  let linesSeen = 0;
   const warnings = new Set<string>();
 
   const importReady = async (): Promise<Report[]> => {
@@ -68,29 +70,38 @@ export async function syncIntegration(integrationId: string, trigger: "agendado"
       const { data, error } = await admin.rpc("integration_import", { p_integration: integ.id, p_file_name: rep.file_name, p_file_sha256: sha, p_lines: lines });
       if (error) throw new Error(error.message);
       linesNew += Number((data as { new?: number })?.new ?? 0);
+      linesSeen += lines.length;
+      reportsDone += 1;
     }
-    return todo;
+    return reports;
   };
 
   try {
     await mp.ensureConfig();
-    await importReady();
+    let reports = await importReady();
     const range = nextRange(new Date(), integ.synced_until ? new Date(integ.synced_until) : null, opening);
-    let waiting = false;
+    // O relatório pedido por último (nesta execução ou na anterior) já apareceu na lista do Mercado Pago?
+    const target = range?.end ?? (integ.synced_until ? new Date(integ.synced_until) : null);
+    const arrived = (list: Report[]) => !target || list.some((r) =>
+      (r.end_date && Math.abs(Date.parse(r.end_date) - target.getTime()) < 5 * 60_000) ||
+      (r.date_created && Date.parse(r.date_created) >= target.getTime() - 2 * 60_000));
     if (range) {
       await mp.request(range.begin, range.end);
-      waiting = true;
       const deadline = Date.now() + (opts.waitMs ?? 20_000);
-      while (waiting && Date.now() + 6_000 < deadline) {
+      reports = [];
+      while (!arrived(reports) && Date.now() + 6_000 < deadline) {
         await sleep(6_000);
-        const got = await importReady();
-        waiting = !got.some((r) => r.end_date && Math.abs(Date.parse(r.end_date) - range.end.getTime()) < 5 * 60_000);
+        reports = await importReady();
       }
     }
+    const waiting = !arrived(reports);
     const novos = `${linesNew} movimento${linesNew === 1 ? "" : "s"} novo${linesNew === 1 ? "" : "s"} na conciliação.`;
+    const detail = linesNew > 0 ? novos
+      : reportsDone > 0 ? `Relatório conferido (${linesSeen} movimento${linesSeen === 1 ? "" : "s"}): nada novo, tudo já estava importado.`
+      : "Nenhum movimento novo.";
     const result: SyncResult = waiting
-      ? { status: "aguardando", message: `${linesNew ? novos + " " : ""}O Mercado Pago ainda está gerando o relatório mais recente. Ele entra na próxima sincronização.`, linesNew }
-      : { status: "ok", message: [novos, ...warnings].join(" "), linesNew };
+      ? { status: "aguardando", message: `${linesNew ? novos + " " : ""}O Mercado Pago ainda está gerando o relatório mais recente. Clique de novo em alguns minutos ou espere a sincronização de amanhã.`, linesNew }
+      : { status: "ok", message: [detail, ...warnings].join(" "), linesNew };
     return record(result, range?.end ?? null);
   } catch (e) {
     const message = e instanceof MercadoPagoError || e instanceof StatementParseError ? e.message : "Erro inesperado na sincronização.";
