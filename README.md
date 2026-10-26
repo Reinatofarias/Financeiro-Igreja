@@ -24,6 +24,7 @@ Em **Conciliação**, importe o extrato e resolva cada movimento:
 - **Mercado Pago**: Seu negócio › Relatórios › **Extrato da conta** (CSV). Este é o recomendado, porque traz saldo inicial e final do período e mostra se o saldo do sistema bate com o do banco. O relatório de **liberações** também é aceito.
 - **Cora e PagBank**: extrato em **OFX**.
 - Importar o mesmo período de novo não duplica nada: o extrato e o relatório de liberações usam a mesma identificação do pagamento.
+- Importou o arquivo errado ou na conta errada? Em **Últimas importações**, clique em **Desfazer**. Só funciona enquanto nenhum movimento daquele arquivo foi lançado, casado ou ignorado; fica registrado na auditoria.
 
 Cada movimento pendente pode ser:
 
@@ -65,7 +66,7 @@ O extrato traz o nome de quem fez o Pix, então só administrador, tesoureiro, o
 
 ### Atualizar um banco já instalado
 
-Cada fase nova traz um arquivo em `supabase/migrations/`. Rode no **SQL Editor** só os arquivos novos, na ordem (a Fase 2 é `20261026000700_conciliacao.sql`). Para instalar do zero, `supabase/instalar.sql` já tem tudo.
+Cada fase nova traz um arquivo em `supabase/migrations/`. Rode no **SQL Editor** só os arquivos novos, na ordem (a Fase 2 é `20261026000700_conciliacao.sql` e `20261026000800_desfazer_importacao.sql`). Para instalar do zero, `supabase/instalar.sql` já tem tudo.
 
 ### 3. Primeiro acesso
 

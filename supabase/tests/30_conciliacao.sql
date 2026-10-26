@@ -115,6 +115,25 @@ begin
   perform tests.eq((select sum(amount_cents) from public.journal_lines where organization_id = v_org)::bigint, 0::bigint, 'razão continua equilibrado');
 
   -- ---------------------------------------------------------------- linhas não são editadas pela API
+  -- ---------------------------------------------------------------- desfazer importação
+  perform tests.login('conc-op@igreja.test');
+  r := public.import_statement(v_org, a2, 'ofx', 'errado.ofx', repeat('c', 64),
+    '[{"external_id": "ofx:z1:1", "posted_date": "2020-03-05", "net_cents": 100}, {"external_id": "ofx:z2:1", "posted_date": "2020-03-05", "net_cents": -40}]'::jsonb);
+  perform tests.login('conc-lider@igreja.test');
+  perform tests.throws(format('select public.undo_statement_import(%L)', r ->> 'import_id'), 'permissão', 'liderança não desfaz importação');
+  perform tests.login('conc-op@igreja.test');
+  perform tests.eq(public.undo_statement_import((r ->> 'import_id')::uuid), 2, 'importação errada desfeita');
+  perform tests.eq((select count(*) from public.statement_lines where financial_account_id = a2), 0::bigint, 'movimentos removidos');
+  perform tests.eq((select count(*) from public.statement_imports where id = (r ->> 'import_id')::uuid), 0::bigint, 'importação removida');
+  perform tests.login('conc@igreja.test');
+  perform tests.eq((select count(*) from public.audit_log where table_name = 'statement_imports' and action = 'delete' and reason like 'Importação desfeita%'), 1::bigint, 'fica na auditoria');
+  perform tests.login('conc-op@igreja.test');
+  r := public.import_statement(v_org, a2, 'ofx', 'errado.ofx', repeat('c', 64),
+    '[{"external_id": "ofx:z1:1", "posted_date": "2020-03-05", "net_cents": 100}]'::jsonb);
+  perform tests.eq((r ->> 'new')::integer, 1, 'depois de desfazer, pode importar de novo');
+  perform tests.throws(format('select public.undo_statement_import(%L)', (select import_id from public.statement_lines where id = l2)),
+    'já foram lançados', 'não desfaz importação com movimentos resolvidos');
+
   perform tests.login('conc@igreja.test');
   perform tests.throws(format('update public.statement_lines set net_cents = 1 where id = %L', l2), 'permission denied', 'valor importado não muda pela API');
   perform tests.logout();

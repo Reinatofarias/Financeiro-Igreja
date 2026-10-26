@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { categoryOptions, loadLookups, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
 import { Badge, Card, EmptyState, Money, Notice, PageHeader, Table, cx } from "@/components/ui";
-import { ImportForm, PendingWorkbench, ReopenButton, type Candidate, type PendingLine } from "./forms";
+import { ImportForm, PendingWorkbench, ReopenButton, UndoImportButton, type Candidate, type PendingLine } from "./forms";
 
 export const metadata: Metadata = { title: "Conciliação" };
 const STATUSES = { pendente: "Pendentes", conciliado: "Conciliados", ignorado: "Ignorados" } as const;
@@ -99,6 +99,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
           <p className="mt-3 text-xs text-muted">
             Mercado Pago: Seu negócio › Relatórios › Extrato da conta (CSV). Cora e PagBank: exporte o extrato em OFX.
             Pode importar o mesmo período de novo: movimentos já importados são ignorados.
+            Importou na conta errada? Use Desfazer em Últimas importações.
           </p>
         </Card>
         <Card title={`Situação · ${account.name}`}>
@@ -183,7 +184,10 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
             {imports.map((i) => (
               <li key={i.id} className="flex flex-wrap justify-between gap-2">
                 <span>{i.file_name} <span className="text-muted">· {PROVIDER_LABEL[account.provider] ?? ""} {i.period_start ? `· ${formatDateBR(i.period_start)} a ${formatDateBR(i.period_end)}` : ""}</span></span>
-                <span className="text-muted">{i.lines_new} novo(s) de {i.lines_total} · {formatDateTimeBR(i.created_at, ctx.org.timezone)}</span>
+                <span className="flex flex-wrap items-center gap-3 text-muted">
+                  {i.lines_new} novo(s) de {i.lines_total} · {formatDateTimeBR(i.created_at, ctx.org.timezone)}
+                  {ctx.can.operate && <UndoImportButton importId={i.id} fileName={i.file_name} />}
+                </span>
               </li>
             ))}
           </ul>
