@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { ignoreLines, importStatement, matchLine, postLines, reopenLine } from "./actions";
+import { ignoreLines, importStatement, matchLine, postLines, reopenLine, undoImport } from "./actions";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Field, Input, Select, buttonStyles, cx } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
@@ -204,6 +204,17 @@ export function ReopenButton({ lineId }: { lineId: string }) {
       <input type="hidden" name="line_id" value={lineId} />
       <SubmitButton variant="ghost">Voltar para pendente</SubmitButton>
       {state && !state.ok && <span className="text-xs text-expense" role="alert">{state.message}</span>}
+    </form>
+  );
+}
+
+export function UndoImportButton({ importId, fileName }: { importId: string; fileName: string }) {
+  const [state, action] = useActionState(undoImport, null);
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="import_id" value={importId} />
+      <SubmitButton variant="ghost" confirm={`Desfazer a importação de "${fileName}"? Os movimentos pendentes deste arquivo serão removidos.`}>Desfazer</SubmitButton>
+      {state && <span className={cx("text-xs", state.ok ? "text-income" : "text-expense")} role={state.ok ? "status" : "alert"}>{state.message}</span>}
     </form>
   );
 }

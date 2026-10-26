@@ -122,3 +122,14 @@ export async function reopenLine(_: ActionState, form: FormData): Promise<Action
   revalidatePath("/conciliacao");
   return { ok: true, message: "Voltou para pendente." };
 }
+
+export async function undoImport(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireContext();
+  const id = uuid.safeParse(form.get("import_id"));
+  if (!id.success) return { ok: false, message: "Importação inválida." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("undo_statement_import", { p_import: id.data });
+  if (error) return { ok: false, message: friendlyError(error) };
+  revalidatePath("/conciliacao");
+  return { ok: true, message: `Importação desfeita: ${data} movimento${data === 1 ? "" : "s"} removido${data === 1 ? "" : "s"}.` };
+}
