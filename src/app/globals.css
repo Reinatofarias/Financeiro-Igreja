@@ -6,7 +6,7 @@
   --ink: #16202a;
   --muted: #5b6673;
   --line: #dde2e8;
-  --brand: #1f4e79;
+  --brand: #7a1f2b;
   --brand-ink: #ffffff;
   --income: #1b7a43;
   --expense: #b3261e;
@@ -34,7 +34,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 
 .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-:focus-visible { outline: 3px solid #2b7bd6; outline-offset: 2px; }
+:focus-visible { outline: 3px solid #b0475a; outline-offset: 2px; }
 
 /* ---------------------------------------------------------------- impressão */
 .print-only { display: none; }

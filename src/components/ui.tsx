@@ -91,7 +91,7 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
     good: "bg-green-50 text-income border-green-200",
     bad: "bg-red-50 text-expense border-red-200",
     warn: "bg-warn-bg text-warn border-amber-200",
-    info: "bg-blue-50 text-brand border-blue-200",
+    info: "bg-rose-50 text-brand border-rose-200",
   };
   return <span className={cx("inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
 }
@@ -109,7 +109,7 @@ export function EmptyState({ title, children, action }: { title: string; childre
 export function Notice({ tone = "warn", children }: { tone?: "warn" | "info" | "bad"; children: ReactNode }) {
   const tones = {
     warn: "border-amber-300 bg-warn-bg text-warn",
-    info: "border-blue-200 bg-blue-50 text-brand",
+    info: "border-rose-200 bg-rose-50 text-brand",
     bad: "border-red-200 bg-red-50 text-expense",
   };
   return <div className={cx("rounded-md border px-4 py-3 text-sm", tones[tone])} role="status">{children}</div>;
