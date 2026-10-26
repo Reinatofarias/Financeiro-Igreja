@@ -48,6 +48,15 @@ Para ligar:
 
 O token dá acesso total à conta do Mercado Pago: fica só na Vercel, nunca no banco, no chat ou em prints. Movimentos anteriores à data do saldo inicial da conta não são importados.
 
+## No celular (como app)
+
+No iPhone, abra o sistema no Safari, toque em **Compartilhar → Adicionar à Tela de Início**. O ícone FP aparece na tela inicial e o sistema abre em tela cheia, com a barra de telas embaixo. No Android, o Chrome oferece **Instalar app**.
+
+## Velocidade
+
+- As funções da Vercel rodam em São Paulo (`gru1`, em `vercel.json`), perto do banco. Se o projeto do Supabase estiver em outra região, troque por a mais próxima dela.
+- Cada tela confere a sessão uma vez e busca vínculo e perfil em paralelo; ao trocar de tela, o esqueleto aparece na hora enquanto os dados chegam.
+
 ## O que ainda NÃO existe
 
 - Integração automática da Cora e do PagBank (por enquanto, extrato em OFX).

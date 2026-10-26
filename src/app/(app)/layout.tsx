@@ -1,60 +1,77 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireContext, ROLE_LABEL } from "@/lib/auth/context";
 import { signOut } from "@/app/auth-actions";
 import { Notice } from "@/components/ui";
-import { NavLinks } from "@/components/nav-links";
+import { MobileNav, NavLinks, type NavGroup } from "@/components/nav-links";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();
-  const items = [
-    { href: "/", label: "Visão geral" },
-    { href: "/contas", label: "Contas e saldos" },
-    { href: "/lancamentos", label: "Lançamentos" },
-    { href: "/caixa", label: "Caixa físico" },
-    ...(ctx.can.seeStatements ? [{ href: "/conciliacao", label: "Conciliação" }] : []),
-    { href: "/relatorios", label: "Relatórios" },
-    { href: "/cadastros", label: "Cadastros" },
-    ...(ctx.can.seeDonors ? [{ href: "/doadores", label: "Doadores" }] : []),
-    ...(ctx.role === "admin" || ctx.role === "tesoureiro" ? [{ href: "/configuracoes", label: "Configurações" }] : []),
-    ...(ctx.can.seeAudit ? [{ href: "/auditoria", label: "Auditoria" }] : []),
+  const groups: NavGroup[] = [
+    {
+      label: "Dia a dia",
+      items: [
+        { href: "/", label: "Visão geral", icon: "home" },
+        { href: "/lancamentos", label: "Lançamentos", icon: "list" },
+        { href: "/contas", label: "Contas e saldos", icon: "wallet" },
+        { href: "/caixa", label: "Caixa físico", icon: "cash" },
+        ...(ctx.can.seeStatements ? [{ href: "/conciliacao", label: "Conciliação", icon: "check" as const }] : []),
+      ],
+    },
+    { label: "Análise", items: [{ href: "/relatorios", label: "Relatórios", icon: "chart" }] },
+    {
+      label: "Gestão",
+      items: [
+        { href: "/cadastros", label: "Cadastros", icon: "tags" },
+        ...(ctx.can.seeDonors ? [{ href: "/doadores", label: "Doadores", icon: "heart" as const }] : []),
+        ...(ctx.role === "admin" || ctx.role === "tesoureiro" ? [{ href: "/configuracoes", label: "Configurações", icon: "gear" as const }] : []),
+        ...(ctx.can.seeAudit ? [{ href: "/auditoria", label: "Auditoria", icon: "shield" as const }] : []),
+      ],
+    },
   ];
-  const upcoming = ["Integrações bancárias (Fase 3)", "Orçamento e aprovações (Fase 4)", "Prestação de contas pública (Fase 5)"];
+  const initials = ctx.name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="no-print border-b border-line bg-surface lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand">Financeiro</p>
-            <p className="font-semibold leading-tight">{ctx.org.name}</p>
+      {/* Celular: barra de cima só com a marca; telas na barra de baixo */}
+      <header className="no-print sticky top-0 z-30 flex items-center gap-3 bg-gradient-to-r from-brand to-brand-deep px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white lg:hidden">
+        <Image src="/brand/simbolo-claro.png" alt="" width={32} height={32} priority className="h-8 w-8 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Financeiro Proclamai</p>
+          <p className="truncate text-sm font-semibold leading-tight">{ctx.org.name}</p>
+        </div>
+      </header>
+
+      <aside className="no-print hidden bg-gradient-to-b from-brand to-brand-deep text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto">
+        <div className="flex items-center gap-3 px-5 py-6">
+          <Image src="/brand/simbolo-claro.png" alt="" width={40} height={40} priority className="h-10 w-10 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">Financeiro Proclamai</p>
+            <p className="line-clamp-2 font-semibold leading-tight">{ctx.org.name}</p>
           </div>
-          <form action={signOut} className="lg:hidden">
-            <button className="text-sm text-brand underline">Sair</button>
+        </div>
+        <nav className="px-3 pb-4" aria-label="Principal">
+          <NavLinks groups={groups} />
+        </nav>
+        <div className="mx-3 mb-4 mt-auto flex items-center gap-3 rounded-lg bg-black/15 p-3 text-sm">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/20 text-xs font-semibold">{initials || "?"}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{ctx.name}</p>
+            <p className="truncate text-xs text-white/60">{ROLE_LABEL[ctx.role]}</p>
+          </div>
+          <form action={signOut}>
+            <button className="rounded-md px-2 py-1 text-xs text-white/80 hover:bg-white/10">Sair</button>
           </form>
         </div>
-        <nav className="px-2 pb-2 lg:pb-4" aria-label="Principal">
-          <NavLinks items={items} />
-          <div className="hidden lg:block">
-            <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wide text-muted">Próximas fases</p>
-            <ul className="mt-1">
-              {upcoming.map((u) => (
-                <li key={u} className="px-3 py-1.5 text-sm text-muted/70">
-                  {u}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 border-t border-line px-3 pt-4 text-sm">
-              <p className="font-medium">{ctx.name}</p>
-              <p className="text-muted">{ROLE_LABEL[ctx.role]}</p>
-              <form action={signOut} className="mt-2">
-                <button className="text-brand underline">Sair</button>
-              </form>
-            </div>
-          </div>
-        </nav>
       </aside>
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl space-y-4">
+
+      <main className="min-w-0 flex-1 px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto max-w-6xl space-y-5">
           {ctx.org.is_demo && <Notice tone="info">Ambiente com dados demonstrativos. Nada aqui representa movimentação real.</Notice>}
           {ctx.needsMfa && (
             <Notice>
@@ -67,6 +84,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </main>
+
+      <MobileNav groups={groups} signOut={signOut} />
     </div>
   );
 }

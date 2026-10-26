@@ -5,29 +5,11 @@ import { parseFilters, filtersToQuery } from "@/lib/finance/filters";
 import { loadLookups, ACCOUNT_KIND_LABEL, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { loadFinancialReport } from "@/lib/finance/reports";
 import { todayIn, formatDateBR, periodLabel } from "@/lib/dates";
-import { ButtonLink, Card, EmptyState, Money, PageHeader, Table } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, Money, PageHeader, Stat, Table } from "@/components/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { CategoryBars, MonthlyChart, MonthlyTable } from "@/components/charts";
 
 export const metadata: Metadata = { title: "Visão geral" };
-
-function Kpi({ label, cents, help, tone, href }: { label: string; cents: number; help: string; tone?: "income" | "expense" | "signed"; href?: string }) {
-  const color = tone === "income" ? "text-income" : tone === "expense" ? "text-expense" : tone === "signed" ? (cents >= 0 ? "text-income" : "text-expense") : "";
-  const body = (
-    <>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className={`mt-1 text-xl font-semibold ${color}`}>
-        <Money cents={cents} />
-      </p>
-      <p className="mt-1 text-xs text-muted">{help}</p>
-    </>
-  );
-  return href ? (
-    <Link href={href} className="block rounded-lg border border-line bg-surface p-4 hover:border-brand">{body}</Link>
-  ) : (
-    <div className="rounded-lg border border-line bg-surface p-4">{body}</div>
-  );
-}
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requireContext();
@@ -61,18 +43,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <FilterBar filters={filters} lookups={lookups} action="/" />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Saldo consolidado" cents={report.summary.total_cents} help="Soma dos saldos calculados de todas as contas, incluindo valores em trânsito." href="/contas" />
-            <Kpi label="Recursos livres" cents={report.summary.free_cents} help="Saldo consolidado menos os fundos vinculados." />
-            <Kpi label="Recursos vinculados" cents={report.summary.restricted_cents} help="Soma dos saldos positivos dos fundos com destino definido." />
-            <Kpi label="Em trânsito" cents={report.summary.in_transit_cents} help="Transferências enviadas e ainda não confirmadas na conta de destino." />
-            <Kpi label="Receitas do período" cents={report.totals.income_cents} tone="income" help="Receitas pelo valor bruto, líquidas de estornos. Não inclui transferências nem saldo inicial." href={`/lancamentos?${q}&tipo=receita`} />
-            <Kpi label="Despesas do período" cents={report.totals.expense_cents} tone="expense" help="Despesas e tarifas, líquidas de estornos. Não inclui transferências." href={`/lancamentos?${q}&tipo=despesa`} />
-            <Kpi label="Resultado do período" cents={report.totals.result_cents} tone="signed" help="Receitas menos despesas do período." href={`/lancamentos?${q}`} />
-            <div className="rounded-lg border border-line bg-surface p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">Lançamentos no período</p>
-              <p className="mt-1 text-xl font-semibold num">{report.totals.entries_count}</p>
-              <p className="mt-1 text-xs text-muted">Com receita ou despesa, incluindo estornos.</p>
-            </div>
+            <Stat featured label="Saldo consolidado" value={<Money cents={report.summary.total_cents} />} help="Soma dos saldos de todas as contas, incluindo valores em trânsito." href="/contas" />
+            <Stat label="Recursos livres" value={<Money cents={report.summary.free_cents} />} help="Saldo consolidado menos os fundos vinculados." />
+            <Stat label="Recursos vinculados" value={<Money cents={report.summary.restricted_cents} />} help="Saldos positivos dos fundos com destino definido." />
+            <Stat label="Em trânsito" value={<Money cents={report.summary.in_transit_cents} />} help="Transferências enviadas e ainda não confirmadas no destino." />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat label="Receitas do período" tone="income" value={<Money cents={report.totals.income_cents} />} help="Valor bruto, líquido de estornos. Sem transferências nem saldo inicial." href={`/lancamentos?${q}&tipo=receita`} />
+            <Stat label="Despesas do período" tone="expense" value={<Money cents={report.totals.expense_cents} />} help="Despesas e tarifas, líquidas de estornos. Sem transferências." href={`/lancamentos?${q}&tipo=despesa`} />
+            <Stat
+              label="Resultado do período"
+              tone={report.totals.result_cents >= 0 ? "income" : "expense"}
+              value={<Money cents={report.totals.result_cents} />}
+              help="Receitas menos despesas do período."
+              href={`/lancamentos?${q}`}
+            />
+            <Stat label="Lançamentos no período" value={<span className="num">{report.totals.entries_count}</span>} help="Com receita ou despesa, incluindo estornos." />
           </div>
 
           <Card title="Evolução mensal" actions={<span className="text-xs text-muted">Valores realizados</span>}>
@@ -102,7 +89,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   ))}
                 </tbody>
               </Table>
-              <p className="mt-2 text-xs text-muted">Saldos calculados pelo sistema (saldo inicial + lançamentos). Ainda não há saldo informado pelo banco: as integrações chegam na Fase 3.</p>
+              <p className="mt-2 text-xs text-muted">Saldos calculados pelo sistema (saldo inicial + lançamentos conciliados).</p>
             </Card>
             <Card title="Fundos">
               <Table>
@@ -120,12 +107,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </Card>
           </div>
 
-          <Card title="Indicadores das próximas fases">
-            <p className="text-sm text-muted">
-              Contas vencidas e a vencer, projeção de caixa e orçado x realizado entram na Fase 4. Situação da conciliação na Fase 2 e saúde das integrações na Fase 3.
-              Não mostramos esses números antes de existirem dados reais para eles. <Link className="text-brand underline" href="/relatorios">Definição de cada indicador</Link>.
-            </p>
-          </Card>
         </>
       )}
     </>

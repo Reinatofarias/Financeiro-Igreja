@@ -80,7 +80,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
             {KINDS.map((k) => <option key={k} value={k}>{ENTRY_KIND_LABEL[k]}</option>)}
           </Select>
         </label>
-        <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-medium text-muted">
+        <label className="flex min-w-0 flex-1 basis-60 flex-col gap-1 text-xs font-medium text-muted">
           Buscar na descrição
           <Input type="search" name="busca" defaultValue={search} placeholder="Ex.: energia, culto, oferta missionária" />
         </label>
@@ -98,6 +98,33 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
           Ajuste o período ou os filtros acima.
         </EmptyState>
       ) : (
+        <>
+        {/* Celular: lista em cartões, fácil de tocar */}
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface sm:hidden">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <Link href={`/lancamentos/${r.id}`} className={`flex items-start justify-between gap-3 px-4 py-3 active:bg-bg ${r.status === "estornado" ? "text-muted" : ""}`}>
+                <div className="min-w-0">
+                  <p className={`truncate font-medium ${r.status === "estornado" ? "line-through" : ""}`}>{r.description}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted">
+                    {formatDateBR(filters.basis === "competencia" ? r.competence_date : r.cash_date)} · {r.account_names ?? (r.touches_transit ? "Em trânsito" : "—")}
+                    {r.category_names ? ` · ${r.category_names}` : ""}
+                  </p>
+                  <div className="mt-1.5 flex gap-1">
+                    <Badge tone={kindTone(r.kind)}>{ENTRY_KIND_LABEL[r.kind]}</Badge>
+                    {r.status === "estornado" && <Badge tone="warn">Estornado</Badge>}
+                  </div>
+                </div>
+                <Money
+                  className="shrink-0 font-semibold"
+                  cents={r.kind === "despesa" ? -r.amount_cents : r.kind === "receita" ? r.amount_cents : r.cash_effect_cents || r.amount_cents}
+                  colored={r.kind === "receita" || r.kind === "despesa"}
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden sm:block">
         <Table>
           <thead>
             <tr>
@@ -126,6 +153,8 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
             ))}
           </tbody>
         </Table>
+        </div>
+        </>
       )}
       {pages > 1 && (
         <nav className="no-print flex items-center justify-between text-sm" aria-label="Paginação">
