@@ -40,6 +40,7 @@ export type AppContext = {
     verifyCash: boolean;
     seeDonors: boolean;
     seeAudit: boolean;
+    seeStatements: boolean; // linhas do extrato trazem o nome de quem fez o Pix
   };
   /** Perfil privilegiado sem MFA quando a organização exige: escrita será recusada pelo banco. */
   needsMfa: boolean;
@@ -89,6 +90,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
       verifyCash: is("admin", "tesoureiro", "aprovador") && !needsMfa,
       seeDonors: is("admin", "tesoureiro", "auditor") && !needsMfa,
       seeAudit: is("admin", "tesoureiro", "auditor") && !needsMfa,
+      seeStatements: is("admin", "tesoureiro", "operador", "auditor") && !needsMfa,
     },
   };
 });
