@@ -23,6 +23,7 @@ export type Organization = {
   logo_path: string | null;
   require_mfa: boolean;
   is_demo: boolean;
+  approval_threshold_cents: number | null;
 };
 
 export type AppContext = {
@@ -37,6 +38,7 @@ export type AppContext = {
     manage: boolean; // cadastros, estornos, períodos
     admin: boolean; // membros e configurações
     verifyCash: boolean;
+    approve: boolean; // aprovar ou recusar despesas
     seeDonors: boolean;
     seeAudit: boolean;
     seeStatements: boolean; // linhas do extrato trazem o nome de quem fez o Pix
@@ -62,7 +64,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   const [{ data: membership }, { data: profile }] = await Promise.all([
     supabase
       .from("memberships")
-      .select("role, organization:organizations(id, name, legal_name, document, timezone, logo_path, require_mfa, is_demo)")
+      .select("role, organization:organizations(id, name, legal_name, document, timezone, logo_path, require_mfa, is_demo, approval_threshold_cents)")
       .eq("user_id", claims.sub)
       .eq("is_active", true)
       .limit(1)
@@ -92,6 +94,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
       manage: is("admin", "tesoureiro") && !needsMfa,
       admin: is("admin") && !needsMfa,
       verifyCash: is("admin", "tesoureiro", "aprovador") && !needsMfa,
+      approve: is("admin", "tesoureiro", "aprovador") && !needsMfa,
       seeDonors: is("admin", "tesoureiro", "auditor") && !needsMfa,
       seeAudit: is("admin", "tesoureiro", "auditor") && !needsMfa,
       seeStatements: is("admin", "tesoureiro", "operador", "auditor") && !needsMfa,

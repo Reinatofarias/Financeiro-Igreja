@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { closeMonth, inviteMember, reopenMonth, revokeInvite, updateMember, updateOrganization } from "./actions";
+import { useState } from "react";
+import { closeMonth, inviteMember, reopenMonth, revokeInvite, updateApproval, updateMember, updateOrganization } from "./actions";
+import { formatAmount } from "@/lib/money";
 import { FormMessage, SubmitButton } from "@/components/form";
-import { Field, Input, Select } from "@/components/ui";
+import { Field, Input, MoneyInput, Select } from "@/components/ui";
 
 const ROLES: [string, string][] = [
   ["admin", "Administrador"],
@@ -92,6 +94,32 @@ export function ReopenMonthForm({ month }: { month: string }) {
       <Input name="reason" placeholder="Justificativa (mín. 10 caracteres)" minLength={10} required className="min-h-8 max-w-xs" />
       <SubmitButton variant="ghost" confirm="Reabrir este mês?">Reabrir</SubmitButton>
       <FormMessage state={state} />
+    </form>
+  );
+}
+
+export function ApprovalForm({ threshold }: { threshold: number | null }) {
+  const [state, action] = useActionState(updateApproval, null);
+  const [mode, setMode] = useState(threshold === null ? "nenhuma" : threshold === 0 ? "todas" : "valor");
+  const opt = (value: string, label: string) => (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="radio" name="mode" value={value} checked={mode === value} onChange={() => setMode(value)} className="h-4 w-4 accent-[var(--brand)]" />
+      {label}
+    </label>
+  );
+  return (
+    <form action={action} className="space-y-3">
+      {opt("nenhuma", "Contas a pagar não precisam de aprovação")}
+      {opt("todas", "Toda conta a pagar precisa de aprovação")}
+      {opt("valor", "Precisa de aprovação a partir de um valor")}
+      {mode === "valor" && (
+        <Field label="A partir de (R$)" htmlFor="ap-amount">
+          <MoneyInput id="ap-amount" name="amount" defaultValue={threshold ? formatAmount(threshold) : ""} className="max-w-40" />
+        </Field>
+      )}
+      <p className="text-xs text-muted">Aprovam: administrador, tesoureiro e aprovador. Quem cadastrou a conta não aprova a própria conta.</p>
+      <FormMessage state={state} />
+      <SubmitButton>Salvar regra</SubmitButton>
     </form>
   );
 }

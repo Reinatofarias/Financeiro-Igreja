@@ -15,13 +15,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         { href: "/lancamentos", label: "Lançamentos", icon: "list" },
         { href: "/contas", label: "Contas e saldos", icon: "wallet" },
         { href: "/caixa", label: "Caixa físico", icon: "cash" },
+        { href: "/contas-a-pagar", label: "Contas a pagar", icon: "calendar" },
         ...(ctx.can.seeStatements ? [{ href: "/conciliacao", label: "Conciliação", icon: "check" as const }] : []),
       ],
     },
-    { label: "Análise", items: [{ href: "/relatorios", label: "Relatórios", icon: "chart" }] },
+    {
+      label: "Análise",
+      items: [
+        { href: "/relatorios", label: "Relatórios", icon: "chart" },
+        { href: "/orcamento", label: "Orçamento", icon: "target" },
+      ],
+    },
     {
       label: "Gestão",
       items: [
+        { href: "/fechamento", label: "Fechamento", icon: "lock" },
         { href: "/cadastros", label: "Cadastros", icon: "tags" },
         ...(ctx.can.seeDonors ? [{ href: "/doadores", label: "Doadores", icon: "heart" as const }] : []),
         ...(ctx.role === "admin" || ctx.role === "tesoureiro" ? [{ href: "/configuracoes", label: "Configurações", icon: "gear" as const }] : []),

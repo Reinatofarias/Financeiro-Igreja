@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireContext } from "@/lib/auth/context";
+import { createClient } from "@/lib/supabase/server";
 import { parseFilters, filtersToQuery } from "@/lib/finance/filters";
 import { loadLookups, ACCOUNT_KIND_LABEL, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { loadFinancialReport } from "@/lib/finance/reports";
@@ -14,7 +15,16 @@ export const metadata: Metadata = { title: "Visão geral" };
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requireContext();
   const filters = parseFilters(await searchParams, ctx.org.timezone);
-  const [lookups, report] = await Promise.all([loadLookups(ctx.org.id), loadFinancialReport(ctx.org.id, filters, todayIn(ctx.org.timezone))]);
+  const supabase = await createClient();
+  const [lookups, report, { data: billsSummary }] = await Promise.all([
+    loadLookups(ctx.org.id),
+    loadFinancialReport(ctx.org.id, filters, todayIn(ctx.org.timezone)),
+    supabase.rpc("bills_summary", { p_org: ctx.org.id }).single(),
+  ]);
+  const bills = billsSummary as {
+    overdue_pay_cents: number; overdue_pay_count: number; week_pay_cents: number; week_pay_count: number;
+    overdue_receive_cents: number; week_receive_cents: number; pending_approval_count: number;
+  } | null;
   const q = filtersToQuery(filters);
   const hasAccounts = lookups.accounts.length > 0;
 
@@ -61,6 +71,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             />
             <Stat label="Lançamentos no período" value={<span className="num">{report.totals.entries_count}</span>} help="Com receita ou despesa, incluindo estornos." />
           </div>
+
+          {bills && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Stat
+                label="Contas vencidas"
+                tone={bills.overdue_pay_count > 0 ? "expense" : undefined}
+                value={<Money cents={bills.overdue_pay_cents} />}
+                help={bills.overdue_pay_count > 0 ? `${bills.overdue_pay_count} conta(s) a pagar já venceram.` : "Nenhuma conta a pagar vencida."}
+                href="/contas-a-pagar"
+              />
+              <Stat label="A pagar em 7 dias" value={<Money cents={bills.week_pay_cents} />} help={`${bills.week_pay_count} conta(s) vencendo nesta semana.`} href="/contas-a-pagar" />
+              <Stat label="A receber em 7 dias" tone="income" value={<Money cents={bills.week_receive_cents} />} help="Contas a receber com vencimento nesta semana." href="/contas-a-pagar?tipo=receber" />
+              <Stat
+                label="Aguardando aprovação"
+                value={<span className="num">{bills.pending_approval_count}</span>}
+                help={ctx.can.approve && bills.pending_approval_count > 0 ? "Toque para aprovar ou recusar." : "Despesas que precisam do ok antes de pagar."}
+                href="/contas-a-pagar"
+              />
+            </div>
+          )}
 
           <Card title="Evolução mensal" actions={<span className="text-xs text-muted">Valores realizados</span>}>
             <MonthlyChart rows={report.monthly} />

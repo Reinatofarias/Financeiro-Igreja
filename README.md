@@ -6,7 +6,7 @@ Stack: Next.js 16 (App Router) + TypeScript, Supabase (Postgres, Auth, Storage) 
 
 O desenho completo (arquitetura, matriz de integrações, modelo de dados e fases) está em [docs/ARQUITETURA.md](docs/ARQUITETURA.md). A definição de cada número do painel está em [docs/INDICADORES.md](docs/INDICADORES.md).
 
-## O que já funciona (Fases 1 e 2)
+## O que já funciona (Fases 1 a 4)
 
 - Login com e-mail e senha, recuperação de senha, verificação em duas etapas (TOTP, obrigatória para administrador e tesoureiro).
 - Perfis: administrador, tesoureiro, operador financeiro, aprovador, conselho fiscal/auditor e liderança. Convites por e-mail.
@@ -48,6 +48,13 @@ Para ligar:
 
 O token dá acesso total à conta do Mercado Pago: fica só na Vercel, nunca no banco, no chat ou em prints. Movimentos anteriores à data do saldo inicial da conta não são importados.
 
+## Contas a pagar, orçamento e fechamento (Fase 4)
+
+- **Contas a pagar e receber**: cadastre energia, água, aluguel, prebenda e o que mais tiver vencimento, inclusive repetindo todo mês (até 36 meses). A conta é só uma previsão: ao **Registrar pagamento**, o sistema cria a despesa (ou receita) com a competência e o vencimento da conta. Estornar esse lançamento devolve a conta para "em aberto".
+- **Aprovação**: em **Configurações › Aprovação de despesas**, escolha se contas a pagar precisam de aprovação (todas ou a partir de um valor). Aprovam administrador, tesoureiro e aprovador; quem cadastrou a conta não aprova a própria. Recusa exige motivo e mudar o valor pede nova aprovação.
+- **Orçamento**: valor por mês para cada categoria principal (as subcategorias somam nela) e a tela de orçado x realizado, por mês ou acumulado no ano, em regime de competência.
+- **Fechamento**: para cada mês, a tela mostra o que falta conferir (caixa aberto, extrato sem conciliar, contas do mês em aberto, despesas aguardando aprovação e transferências em trânsito) e os saldos no último dia. Fechar bloqueia lançamentos no mês; reabrir exige justificativa, que fica na auditoria.
+
 ## No celular (como app)
 
 No iPhone, abra o sistema no Safari, toque em **Compartilhar → Adicionar à Tela de Início**. O ícone FP aparece na tela inicial e o sistema abre em tela cheia, com a barra de telas embaixo. No Android, o Chrome oferece **Instalar app**.
@@ -60,7 +67,7 @@ No iPhone, abra o sistema no Safari, toque em **Compartilhar → Adicionar à Te
 ## O que ainda NÃO existe
 
 - Integração automática da Cora e do PagBank (por enquanto, extrato em OFX).
-- Contas a pagar/receber, orçamento e aprovações (Fase 4).
+- Exportação em XLSX e pacote para o contador.
 - Prestação de contas pública (Fase 5).
 
 ## Instalação (Supabase + Vercel, plano gratuito)

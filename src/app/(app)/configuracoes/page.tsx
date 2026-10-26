@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { requireContext, ROLE_LABEL, type Role } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
-import { addMonths, formatDateBR, formatDateTimeBR, monthLabel, monthStart, todayIn } from "@/lib/dates";
+import { formatDateTimeBR } from "@/lib/dates";
 import { Badge, Card, EmptyState, PageHeader, Table } from "@/components/ui";
-import { CloseMonthForm, InviteForm, MemberForm, OrgForm, ReopenMonthForm, RevokeInviteForm } from "./forms";
+import Link from "next/link";
+import { ApprovalForm, InviteForm, MemberForm, OrgForm, RevokeInviteForm } from "./forms";
 
 export const metadata: Metadata = { title: "Configurações" };
 
@@ -20,7 +21,6 @@ export default async function SettingsPage() {
   ]);
   const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
   const person = (id: string) => profiles?.find((p) => p.id === id);
-  const lastMonth = addMonths(monthStart(todayIn(ctx.org.timezone)), -1).slice(0, 7);
 
   return (
     <>
@@ -63,33 +63,24 @@ export default async function SettingsPage() {
             <li><strong>Administrador</strong>: tudo, inclusive convidar e mudar perfis (nunca o próprio).</li>
             <li><strong>Tesoureiro</strong>: lançar, estornar, cadastros, doadores, fechar e reabrir meses.</li>
             <li><strong>Operador financeiro</strong>: lançar receitas, despesas, transferências e operar o caixa.</li>
-            <li><strong>Aprovador</strong>: conferir caixas fechados por outra pessoa; aprovações na Fase 4.</li>
+            <li><strong>Aprovador</strong>: conferir caixas fechados por outra pessoa e aprovar ou recusar despesas.</li>
             <li><strong>Conselho fiscal / auditor</strong>: leitura de tudo, inclusive doadores e auditoria.</li>
             <li><strong>Liderança</strong>: visão gerencial e relatórios, sem doadores identificados.</li>
           </ul>
         </details>
       </Card>
 
+      {ctx.can.admin && (
+        <Card title="Aprovação de despesas">
+          <ApprovalForm threshold={ctx.org.approval_threshold_cents} />
+        </Card>
+      )}
+
       <Card title="Fechamento mensal">
-        <p className="mb-3 text-sm text-muted">Mês fechado não aceita lançamentos novos nem estornos com data nele. Reabrir exige justificativa, que fica na auditoria. A tela completa de fechamento (com conferência dos saldos bancários) chega na Fase 4.</p>
-        {ctx.can.manage && <CloseMonthForm defaultMonth={lastMonth} />}
-        {(periods ?? []).length > 0 && (
-          <div className="mt-3">
-            <Table>
-              <thead><tr><th>Mês</th><th>Situação</th><th>Histórico</th>{ctx.can.manage && <th />}</tr></thead>
-              <tbody>
-                {(periods ?? []).map((p) => (
-                  <tr key={p.month}>
-                    <td>{monthLabel(p.month, true)}</td>
-                    <td>{p.status === "fechado" ? <Badge tone="warn">Fechado</Badge> : <Badge tone="good">Aberto</Badge>}</td>
-                    <td className="text-xs text-muted">Fechado em {formatDateTimeBR(p.closed_at, ctx.org.timezone)}{p.reopened_at && <> · reaberto em {formatDateBR(p.reopened_at.slice(0, 10))}: {p.reopen_reason}</>}</td>
-                    {ctx.can.manage && <td>{p.status === "fechado" && <ReopenMonthForm month={p.month} />}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        )}
+        <p className="text-sm text-muted">
+          A conferência e o fechamento de cada mês ficam em <Link href="/fechamento" className="text-brand underline">Fechamento</Link>.
+          {(periods ?? []).length > 0 && ` Meses fechados: ${(periods ?? []).filter((p) => p.status === "fechado").length}.`}
+        </p>
       </Card>
     </>
   );
