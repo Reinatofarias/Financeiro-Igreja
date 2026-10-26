@@ -34,9 +34,23 @@ Cada movimento pendente pode ser:
 
 O extrato traz o nome de quem fez o Pix, então só administrador, tesoureiro, operador e auditor (com verificação em duas etapas) veem esta tela. O valor importado não pode ser alterado depois; para desfazer um lançamento criado do extrato, estorne o lançamento e o movimento volta a ficar pendente.
 
+## Integração com o Mercado Pago (Fase 3)
+
+Uma vez por dia (7h de Recife) o sistema pede ao Mercado Pago o relatório "Dinheiro em conta" de cada conta integrada e coloca os movimentos novos na **Conciliação**, como pendentes. Nada é lançado sem alguém do financeiro conferir. O mesmo pagamento importado por arquivo e pela integração não duplica.
+
+Para ligar:
+
+1. Em [mercadopago.com.br/developers](https://www.mercadopago.com.br/developers), entre com a conta da igreja > **Suas integrações** > **Criar aplicação** (escolha **QR Code**).
+2. Na aplicação, abra **Credenciais de produção** e copie o **Access Token** (`APP_USR-...`).
+3. Na Vercel, crie `MERCADOPAGO_ACCESS_TOKEN_1` com o token (a segunda conta usa `_2`) e `CRON_SECRET` com uma senha longa. Faça um redeploy.
+4. No sistema, abra a conta em **Contas e saldos** e, em **Integração com o Mercado Pago**, escolha o número do token e salve.
+5. Em **Conciliação**, clique em **Sincronizar agora** para a primeira sincronização.
+
+O token dá acesso total à conta do Mercado Pago: fica só na Vercel, nunca no banco, no chat ou em prints. Movimentos anteriores à data do saldo inicial da conta não são importados.
+
 ## O que ainda NÃO existe
 
-- Nenhuma integração bancária automática: o extrato é importado por arquivo. APIs da Cora, Mercado Pago e PagBank ficam para a Fase 3.
+- Integração automática da Cora e do PagBank (por enquanto, extrato em OFX).
 - Contas a pagar/receber, orçamento e aprovações (Fase 4).
 - Prestação de contas pública (Fase 5).
 
@@ -66,7 +80,7 @@ O extrato traz o nome de quem fez o Pix, então só administrador, tesoureiro, o
 
 ### Atualizar um banco já instalado
 
-Cada fase nova traz um arquivo em `supabase/migrations/`. Rode no **SQL Editor** só os arquivos novos, na ordem (a Fase 2 é `20261026000700_conciliacao.sql` e `20261026000800_desfazer_importacao.sql`). Para instalar do zero, `supabase/instalar.sql` já tem tudo.
+Cada fase nova traz um arquivo em `supabase/migrations/`. Rode no **SQL Editor** só os arquivos novos, na ordem (a Fase 2 é `20261026000700_conciliacao.sql` e `20261026000800_desfazer_importacao.sql`; a integração com o Mercado Pago é `20261026000900_integracao_mercado_pago.sql`). Para instalar do zero, `supabase/instalar.sql` já tem tudo.
 
 ### 3. Primeiro acesso
 

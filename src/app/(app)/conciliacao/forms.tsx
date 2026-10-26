@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { ignoreLines, importStatement, matchLine, postLines, reopenLine, undoImport } from "./actions";
+import { ignoreLines, importStatement, matchLine, postLines, reopenLine, syncNow, undoImport } from "./actions";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Field, Input, Select, buttonStyles, cx } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
@@ -215,6 +215,17 @@ export function UndoImportButton({ importId, fileName }: { importId: string; fil
       <input type="hidden" name="import_id" value={importId} />
       <SubmitButton variant="ghost" confirm={`Desfazer a importação de "${fileName}"? Os movimentos pendentes deste arquivo serão removidos.`}>Desfazer</SubmitButton>
       {state && <span className={cx("text-xs", state.ok ? "text-income" : "text-expense")} role={state.ok ? "status" : "alert"}>{state.message}</span>}
+    </form>
+  );
+}
+
+export function SyncButton({ integrationId }: { integrationId: string }) {
+  const [state, action] = useActionState(syncNow, null);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="integration_id" value={integrationId} />
+      <SubmitButton variant="secondary">Sincronizar agora</SubmitButton>
+      <FormMessage state={state} />
     </form>
   );
 }

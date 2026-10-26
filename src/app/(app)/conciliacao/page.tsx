@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { categoryOptions, loadLookups, PROVIDER_LABEL } from "@/lib/finance/lookups";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dates";
 import { Badge, Card, EmptyState, Money, Notice, PageHeader, Table, cx } from "@/components/ui";
-import { ImportForm, PendingWorkbench, ReopenButton, UndoImportButton, type Candidate, type PendingLine } from "./forms";
+import { ImportForm, PendingWorkbench, ReopenButton, SyncButton, UndoImportButton, type Candidate, type PendingLine } from "./forms";
 
 export const metadata: Metadata = { title: "Conciliação" };
+// "Sincronizar agora" espera o Mercado Pago gerar o relatório.
+export const maxDuration = 60;
 const STATUSES = { pendente: "Pendentes", conciliado: "Conciliados", ignorado: "Ignorados" } as const;
 type Status = keyof typeof STATUSES;
 const LIMIT = 300;
@@ -40,7 +42,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
     );
   }
 
-  const [linesRes, candRes, importRes] = await Promise.all([
+  const [linesRes, candRes, importRes, integRes] = await Promise.all([
     supabase
       .from("statement_lines")
       .select("id, posted_date, description, gross_cents, fee_cents, net_cents, status, entry_id, created_entry, ignore_reason, resolved_at, journal_entries(number)")
@@ -56,7 +58,9 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       .eq("financial_account_id", account.id)
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase.from("integrations").select("id, enabled, last_run_at, last_status, last_message").eq("financial_account_id", account.id).maybeSingle(),
   ]);
+  const integ = integRes.data;
   type Row = PendingLine & { status: Status; entry_id: string | null; created_entry: boolean; ignore_reason: string | null; resolved_at: string | null; journal_entries: { number: number } | { number: number }[] | null };
   const lines = ((linesRes.data ?? []) as unknown as Row[]).map((l) => ({
     ...l,
@@ -96,6 +100,15 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card title="Importar extrato">
           <ImportForm accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} defaultAccount={account.id} />
+          {integ?.enabled && (
+            <div className="mt-4 space-y-2 border-t border-line pt-3 text-sm">
+              <p className="font-medium">Sincronização automática com o Mercado Pago</p>
+              <p className="text-muted">
+                {integ.last_run_at ? `Última: ${formatDateTimeBR(integ.last_run_at, ctx.org.timezone)}. ${integ.last_message ?? ""}` : "Ainda não sincronizou."}
+              </p>
+              {ctx.can.operate && <SyncButton integrationId={integ.id} />}
+            </div>
+          )}
           <p className="mt-3 text-xs text-muted">
             Mercado Pago: Seu negócio › Relatórios › Extrato da conta (CSV). Cora e PagBank: exporte o extrato em OFX.
             Pode importar o mesmo período de novo: movimentos já importados são ignorados.

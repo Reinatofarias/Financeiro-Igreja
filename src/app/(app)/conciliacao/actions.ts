@@ -6,6 +6,7 @@ import { requireContext } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError, type ActionState } from "@/lib/errors";
 import { decodeStatement, parseStatement, StatementParseError } from "@/lib/import/parse";
+import { syncIntegration } from "@/lib/integrations/sync";
 
 const uuid = z.string().uuid();
 const optUuid = z.preprocess((v) => (v === "" || v === null ? undefined : v), uuid.optional());
@@ -132,4 +133,18 @@ export async function undoImport(_: ActionState, form: FormData): Promise<Action
   if (error) return { ok: false, message: friendlyError(error) };
   revalidatePath("/conciliacao");
   return { ok: true, message: `Importação desfeita: ${data} movimento${data === 1 ? "" : "s"} removido${data === 1 ? "" : "s"}.` };
+}
+
+export async function syncNow(_: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await requireContext();
+  if (!ctx.can.operate || ctx.needsMfa) return { ok: false, message: "Seu perfil não sincroniza extratos." };
+  const id = uuid.safeParse(form.get("integration_id"));
+  if (!id.success) return { ok: false, message: "Integração inválida." };
+  // Confere com o cliente da própria pessoa que a integração é da igreja dela.
+  const supabase = await createClient();
+  const { data: integ } = await supabase.from("integrations").select("id").eq("id", id.data).eq("organization_id", ctx.org.id).maybeSingle();
+  if (!integ) return { ok: false, message: "Integração não encontrada." };
+  const r = await syncIntegration(id.data, "manual", { requestedBy: ctx.userId, waitMs: 25_000 });
+  revalidatePath("/conciliacao");
+  return { ok: r.status !== "erro", message: r.message };
 }
