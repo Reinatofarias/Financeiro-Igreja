@@ -13,10 +13,12 @@ export const metadata: Metadata = { title: "Contas e saldos" };
 export default async function AccountsPage() {
   const ctx = await requireContext();
   const supabase = await createClient();
-  const [{ data }, { data: summary }] = await Promise.all([
+  const [{ data }, { data: summary }, { data: integrations }] = await Promise.all([
     supabase.rpc("account_balances", { p_org: ctx.org.id, p_as_of: null }),
     supabase.rpc("balance_summary", { p_org: ctx.org.id, p_as_of: null }).single(),
+    supabase.from("integrations").select("financial_account_id, enabled, last_status").eq("organization_id", ctx.org.id),
   ]);
+  const integ = new Map((integrations ?? []).map((i) => [i.financial_account_id as string, i]));
   const rows = (data ?? []) as AccountBalance[];
   const s = summary as { total_cents: number; in_transit_cents: number } | null;
 
@@ -35,7 +37,7 @@ export default async function AccountsPage() {
               <tr key={r.account_id} className={r.is_active ? "" : "text-muted"}>
                 <td><Link className="text-brand underline" href={`/contas/${r.account_id}`}>{r.name}</Link>{!r.is_active && <span className="ml-2"><Badge>Desativada</Badge></span>}</td>
                 <td>{ACCOUNT_KIND_LABEL[r.kind as keyof typeof ACCOUNT_KIND_LABEL]}</td>
-                <td>{PROVIDER_LABEL[r.provider]} {r.provider !== "manual" && <Badge>Não conectada (Fase 3)</Badge>}</td>
+                <td>{PROVIDER_LABEL[r.provider]} {r.provider !== "manual" && <IntegrationBadge provider={r.provider} integ={integ.get(r.account_id)} />}</td>
                 <td>{formatDateBR(r.last_movement)}</td>
                 <td>Calculado</td>
                 <td className="text-right font-medium"><Money cents={r.balance_cents} /></td>
@@ -57,4 +59,12 @@ export default async function AccountsPage() {
       )}
     </>
   );
+}
+
+function IntegrationBadge({ provider, integ }: { provider: string; integ?: { enabled: boolean; last_status: string | null } }) {
+  if (!integ) return <Badge>{provider === "mercado_pago" ? "Não conectada" : "Por arquivo (OFX)"}</Badge>;
+  if (!integ.enabled) return <Badge>Desligada</Badge>;
+  if (integ.last_status === "erro") return <Badge tone="bad">Conectada · com erro</Badge>;
+  if (integ.last_status === "aguardando") return <Badge tone="warn">Conectada · aguardando</Badge>;
+  return <Badge tone="good">Conectada</Badge>;
 }
